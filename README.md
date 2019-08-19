@@ -47,7 +47,7 @@ I reached out to the EthSecurity community to help assess this situation. Some n
 - Contracts whose default function would not be executable today on `2300` gas would not be affected e.g. contracts that do SLOAD or transfer ether in `default` would already be 'broken'
 
 
-Neville Grech, if [Contract Library](https://contract-library.com], performed an analysis of decompiled mainnet contracts. The analysis covers about 95% of all contracts on mainnet (500K unique bytecodes), and lists those that could potentially be affected. 
+Neville Grech, of [Contract Library](https://contract-library.com), performed an analysis of decompiled mainnet contracts. The analysis covers about 95% of all contracts on mainnet (500K unique bytecodes), and lists those that could potentially be affected. 
   - The list is available [here](https://contract-library.com/?w=FALLBACK_WILL_FAIL)
 
 
