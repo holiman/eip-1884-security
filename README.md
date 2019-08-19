@@ -30,9 +30,9 @@ One potential problem of EIP-1884 is that `default` functions might start to fai
 
 * Limited wallets: A contract only allows payments if `balance(self)` is below a certain limit 
 * Designated senders: A contract only allows payments from a set of pre-approved senders
-* Disable:able wallets: A contract only allows payments if a certain variable (slot) is set to `true`. 
+* Disabled wallets: A contract only allows payments if a certain variable (slot) is set to `true`. 
 
-Now, if a `default` function cease to work with `2300` gas, this is not always a very serious problem. For example, if the caller is a so called `EOA` (Externally Owner Account - meaning end user), the caller can simply make sure to send a bit more than `21000` gas in the transaction. But the problem can arise if, for example
+Now, if a `default` function ceases to work with `2300` gas, this is not always a very serious problem. For example, if the caller is a so called `EOA` (Externally Owner Account - meaning end user), the caller can simply make sure to send a bit more than `21000` gas in the transaction. But the problem can arise if, for example
 
 - The `target` has designated sender, 
 - The `senders` are smart contracts, which are programmed to only ever use `transfer` with no extra gas. 
@@ -72,7 +72,7 @@ See [this gist](https://gist.github.com/ritzdorf/1c6bd72955391e831f8a397d3152b4e
  - Implements the "Designated senders" pattern, 
  - Called primarily through other contracts, which rely on `transfer` (this limited to `2300` gas)
 
-We reached out to Kyber Netwrok, and although it is obviously a chore to do, this can be solved: 
+We reached out to KyberNetwork, and although it is obviously a chore to do, this can be solved: 
 
  > technically the market maker can just deploy new reserve contract
 
@@ -104,7 +104,7 @@ In essence, it currently uses:
 
  `200 (sload limit) +200 (sload withdrawn) +400 (balance) = 800 gas` 
 
-into, post-EIp-1884: 
+into, post-EIP-1884: 
 
 `5 (selfbalance) + 800 (sload withdrawn) = 805 gas`. 
 
