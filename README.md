@@ -50,12 +50,41 @@ I reached out to the EthSecurity community to help assess this situation. Some n
 Neville Grech, of [Contract Library](https://contract-library.com), performed a static analysis of partially decompiled mainnet contracts. The analysis covers about 95% of all contracts on mainnet, and from the last 500k blocks of testnets,  (400K unique bytecodes), and lists those that could potentially be affected.
   - The list is available [here](https://contract-library.com/?w=FALLBACK_WILL_FAIL) and is updated automatically
   
-The static analysis is encoded in the following simplified datalog spec:
+Note that static program analysis is a technique that considers all program's behaviors without having to execute the program. The static analysis is encoded in the following *simplified* datalog spec, deployed on contract-library.com:
+
+```prolog
+% Restrict the edges that form the possible paths to those in fallback functions
+FallbackFunctionBlockEdge(from, to) :-
+   GlobalBlockEdge(from, to), 
+   InFunction(from, f), FallbackFunction(f),
+   InFunction(to, g), FallbackFunction(g).
+
+% Analyze the fallback function paths with the
+% conventional gas semantics, taking shortest paths
+GasCostAnalysis = new CostAnalysis(
+  Block_Gas, FallbackFunctionBlockEdge, 2300, min
+).
+
+% Analyze the fallback function paths with the
+% updated gas semantics, taking shortest paths
+EIP1884GasCostAnalysis = new CostAnalysis(
+  EIP1884Block_Gas, FallbackFunctionBlockEdge, 2300, min
+).
+
+FallbackWillFailAnyway(n - 2300) :-
+   GasCostAnalysis(*, n), n > 2300.
+
+% fallback will fail with n - m additional gas
+EIP1884FallbackWillFail(n - m) :-
+   EIP1884GasCostAnalysis(block, n), n > 2300,
+   GasCostAnalysis(block, m),
+   !FallbackWillFailAnyway(*).
+``` 
 
 
-Which performs a gas cost computation over all possible paths in the fallback functions, using the gas cost semantics of both PRE and POST EIP-1884. In cases where there is a path that can complete in the former semantics but not the latter, we flag the smart contract as vulnerable.
+The analysis performs a gas cost computation over all possible paths in the fallback functions, using the gas cost semantics of both PRE and POST EIP-1884. In cases where there is a path that can complete in the former semantics but not the latter, we flag the smart contract.
 
-The analysis automatically flagged 200 smart contracts on the mainnet, including the [Kyber Network](https://contract-library.com/contracts/Ethereum/0x91b9d2835ad914bc1dcfe09bd1816febd04fd689) contract and the [CappedVault](https://contract-library.com/contracts/Ethereum/0x91b9d2835ad914bc1dcfe09bd1816febd04fd689) contract mentioned below. Note that the CappedVault contract will still keep working if the BALANCE opcode's gas requirements are lowered, say to 600. It however also finds several potential other contracts (with balance) with fallbacks that can fail under various circumstances with the new gas semantics:
+The analysis automatically flagged over 200 smart contracts on the mainnet, including the [Kyber Network](https://contract-library.com/contracts/Ethereum/0x91b9d2835ad914bc1dcfe09bd1816febd04fd689) contract and the [CappedVault](https://contract-library.com/contracts/Ethereum/0x91b9d2835ad914bc1dcfe09bd1816febd04fd689) contract mentioned below. Note that the CappedVault contract will still keep working if the BALANCE opcode's gas requirements are lowered, say to 600. It however also finds several potential other contracts (with balance) that can fail the fallback under various circumstances with the new gas semantics:
 
 [This one](https://contract-library.com/contracts/Ethereum/0x690858a9ab0d9afa707f1438fc175cca6be1a1db) contains more than 580 ETH and will stop accepting unsolicited donations :)
 Same for the [NEXXO crowdsale](https://contract-library.com/contracts/Ethereum/0x2c7fa71e31c0c6bb9f21fc3c098ac2c53f8598cc) and for the [Crowd Machine Compute Token crowdsale](https://contract-library.com/contracts/Ethereum/0x5fe56cb82b3d88b6e37d3a9dba8f5b40b28dda7e).
