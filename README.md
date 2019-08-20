@@ -46,6 +46,7 @@ I reached out to the EthSecurity community to help assess this situation. Some n
 - Contracts that does not have a `payable` default function would not be affected, 
 - Contracts whose default function would not be executable today on `2300` gas would not be affected e.g. contracts that do SLOAD or transfer ether in `default` would already be 'broken'
 
+### Contract library analysis
 
 Neville Grech, of [Contract Library](https://contract-library.com), performed a static analysis of partially decompiled mainnet contracts. The analysis covers about 95% of all contracts on mainnet, and from the last 500k blocks of testnets,  (400K unique bytecodes), and lists those that could potentially be affected.
   - The list is available [here](https://contract-library.com/?w=FALLBACK_WILL_FAIL) and is updated automatically
@@ -86,14 +87,78 @@ The analysis performs a gas cost computation over all possible paths in the fall
 
 The analysis automatically flagged over 200 smart contracts on the mainnet, including the [Kyber Network](https://contract-library.com/contracts/Ethereum/0x91b9d2835ad914bc1dcfe09bd1816febd04fd689) contract and the [CappedVault](https://contract-library.com/contracts/Ethereum/0x91b9d2835ad914bc1dcfe09bd1816febd04fd689) contract mentioned below. Note that the CappedVault contract will still keep working if the BALANCE opcode's gas requirements are lowered, say to 600. It however also finds several potential other contracts (with balance) that can fail the fallback under various circumstances with the new gas semantics:
 
-[This one](https://contract-library.com/contracts/Ethereum/0x690858a9ab0d9afa707f1438fc175cca6be1a1db) contains more than 580 ETH and will stop accepting unsolicited donations :)
-Same for the [NEXXO crowdsale](https://contract-library.com/contracts/Ethereum/0x2c7fa71e31c0c6bb9f21fc3c098ac2c53f8598cc) and for the [Crowd Machine Compute Token crowdsale](https://contract-library.com/contracts/Ethereum/0x5fe56cb82b3d88b6e37d3a9dba8f5b40b28dda7e).
+[EbcFund](https://contract-library.com/contracts/Ethereum/0x690858a9ab0d9afa707f1438fc175cca6be1a1db) contains more than 580 ETH and will stop accepting donations below `2300 gas`:
+
+```
+    /**
+     * @dev fallback function to send ether to smart contract
+     **/
+    function () public payable {
+        require(currentStage == Stages.Started);
+        require(cfgMinDepositRequired <= msg.value && msg.value <= cfgMaxDepositRequired);
+        
+        if(donateList[msg.sender] == false) {
+            if(transporter != address(0) && msg.sender == transporter) {
+                //validate msg.data
+                if(msg.data.length > 0) {
+                    //init new game
+                    processDeposit(bytesToAddress(msg.data));
+                }
+                else {
+                     emit Logger("Thank you for your contribution!.", msg.value);
+                }
+            }
+            else {
+                //init new game
+                processDeposit(msg.sender);
+            }
+        }
+        else {
+            emit Logger("Thank you for your contribution!", msg.value);
+        }
+    }
+```
+The code was last called `144` days ago.
 
 
+Same for the [NEXXO crowdsale](https://contract-library.com/contracts/Ethereum/0x2c7fa71e31c0c6bb9f21fc3c098ac2c53f8598cc) :
 
-Hubert Ritzdorf, of [ChainSecurity](https://chainsecurity.com/), performed an analysis of recent transactions. The analysis is based on investigating actual transactions on mainnet, and seeing which of those would have failed if `SLOAD` had cost `800` instead of `200`. Partial results are [here](https://gist.github.com/ritzdorf/1c6bd72955391e831f8a397d3152b4e0). 
+```
+
+    modifier onlyICO() {
+        require(now >= icoStartDate && now < icoEndDate, "CrowdSale is not running");
+        _;
+    }
+
+    function () public payable onlyICO{
+        require(!stopped, "CrowdSale is stopping");
+    }
+
+```
+For NEXXO, it checks three slots, `icoStartDate`, `icoEndDate` and `stopped`, totalling `2400` with new gas rules. 
+
+
+Similar problem for [Crowd Machine Compute Token crowdsale](https://contract-library.com/contracts/Ethereum/0x5fe56cb82b3d88b6e37d3a9dba8f5b40b28dda7e):
+```
+  modifier onlyIfRunning
+  {
+    require(running);
+    _;
+  }
+
+  function () public onlyIfRunning payable {
+    require(isApproved(msg.sender));
+    LogEthReceived(msg.sender, msg.value);
+  }
+
+```
+
+Important reminder: The crowdsales above do not inherently _break_, it just means that callers need to add some more gas than `2300` to partake in the ICO contracts. 
+
 
 ### Chain Security analysis
+
+Hubert Ritzdorf, of [ChainSecurity](https://chainsecurity.com/), performed an analysis of recent transactions. The analysis is based on investigating actual transactions on mainnet, and seeing which of those would have failed if `SLOAD` had cost `800` instead of `200`. Partial results are [here](https://gist.github.com/ritzdorf/1c6bd72955391e831f8a397d3152b4e0). 
 
 See [this gist](https://gist.github.com/ritzdorf/1c6bd72955391e831f8a397d3152b4e0), with the following comment:
 
