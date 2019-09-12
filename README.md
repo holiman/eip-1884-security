@@ -9,7 +9,7 @@
 - increases the cost of `BALANCE` and `EXTCODEHASH` from `400` to `700` gas
 - adds a new opcode `SELFBALANCE` with cost `5`. 
 
-The reasoning is that due to the increase in state size, and thus the added IO overhead for fetching tries from disk, the opcodes `SLOAD`, `BALANCE` and `EXTCODEHASH` have become disproportionally 'cheap', for the amount of work that a node has to perform. Having badly 'tuned' gas cost versus the underlying computational cost of an operation is a problem which can cause various problems, and pave the way for attacks such as the so called 'Shanghai attacks' as seen in late 2017. 
+The reasoning is that due to the increase in state size, and thus the added IO overhead for fetching tries from disk, the opcodes `SLOAD`, `BALANCE` and `EXTCODEHASH` have become disproportionally 'cheap', for the amount of work that a node has to perform. Having badly 'tuned' gas cost versus the underlying computational cost of an operation is a problem which can cause various problems, and pave the way for attacks such as the so called 'Shanghai attacks' as seen in late 2016. 
 
 ## Potential problems
 
